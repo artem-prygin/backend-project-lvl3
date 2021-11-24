@@ -6,7 +6,7 @@ export const formatName = (str) => {
 		.replace(/www./g, '')
 		.replaceAll(/[./_]/g, '-')
 		.replaceAll(/^-|-$/g, '');
-}
+};
 
 export const generateAssetsBasename = (url) => formatName(url.hostname);
 
