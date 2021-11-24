@@ -12,7 +12,7 @@ const expectedAssetsPathName = 'ru-hexlet-io-courses_files';
 const expectedAssetsPath = path.join(expectedPath, expectedAssetsPathName);
 const urlOrigin = 'https://ru.hexlet.io';
 const urlPathname = '/courses';
-const url = new URL(urlPathname, urlOrigin);
+const url = `${urlOrigin}${urlPathname}`;
 const scope = nock(urlOrigin).persist();
 
 let resources = [
@@ -33,6 +33,12 @@ let resources = [
 		urlPath: '/packs/js/runtime.js',
 		expectedFilepath: path.join(expectedAssetsPath, 'ru-hexlet-io-packs-js-runtime.js'),
 		filename: 'ru-hexlet-io-packs-js-runtime.js',
+	},
+	{
+		format: 'html',
+		urlPath: urlPathname,
+		expectedFilepath: path.join(expectedAssetsPath, 'ru-hexlet-io-courses.html'),
+		filename: 'ru-hexlet-io-courses.html',
 	},
 ];
 const formats = resources.map((res) => res.format);
@@ -66,17 +72,25 @@ beforeAll(async () => {
 });
 
 describe('negative cases', () => {
-	test('load page: no response', async () => {
+	test('no response', async () => {
 		const invalidBaseUrl = urlOrigin.replace('x', '');
 		const expectedError = `getaddrinfo ENOTFOUND ${invalidBaseUrl}`;
 		nock(invalidBaseUrl).get('/').replyWithError(expectedError);
-		await expect(pageLoader(new URL(invalidBaseUrl), tmpDirPath))
+		await expect(pageLoader(invalidBaseUrl, tmpDirPath))
+			.rejects.toThrow(expectedError);
+	});
+
+	test('wrong url format', async () => {
+		const invalidBaseUrl = 'invalid_url';
+		const expectedError = 'connect ECONNREFUSED 127.0.0.1:80';
+		nock(invalidBaseUrl).get('/').replyWithError(expectedError);
+		await expect(pageLoader(invalidBaseUrl, tmpDirPath))
 			.rejects.toThrow(expectedError);
 	});
 
 	test.each([404, 500])('status code %s', async (code) => {
 		scope.get(`/${code}`).reply(code, '');
-		await expect(pageLoader(new URL(`/${code}`, urlOrigin), tmpDirPath))
+		await expect(pageLoader(`${urlOrigin}/${code}`, tmpDirPath))
 			.rejects.toThrow(`Request failed with status code ${code}`);
 	});
 
@@ -100,7 +114,7 @@ describe('successful cases', () => {
 		const fileWasCreated = await fileExists(path.join(tmpDirPath, fixturedHTMLFilename));
 		expect(fileWasCreated).toBe(true);
 		const actualContent = await fsPromises.readFile(path.join(tmpDirPath, fixturedHTMLFilename), 'utf-8');
-		expect(actualContent).toBe(expectedContent);
+		expect(actualContent).toBe(expectedContent.trim());
 	});
 
 	test.each(formats)('save %s resource', async (format) => {

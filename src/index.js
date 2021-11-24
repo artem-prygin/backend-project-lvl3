@@ -32,7 +32,7 @@ const assetsMapping = [
 	},
 ];
 
-const getHTMLByUrl = (url) => axios.get(url.href)
+const getHTMLByUrl = (url) => axios.get(url)
 	.then((res) => res.data);
 
 const writeFile = (filepath, data) => fsPromises.writeFile(filepath, data)
@@ -90,6 +90,10 @@ const saveAssets = (htmlData, url, outputDir) => {
 	const listr = new Listr(assetsPromises);
 	return listr.run()
 		.then(() => {
+			const originalHtmlPath = path.join(outputDir, assetsDirName, `${htmlBasename}.html`);
+			return writeFile(originalHtmlPath, htmlData);
+		})
+		.then(() => {
 			const htmlPath = path.join(outputDir, `${htmlBasename}.html`);
 			return writeFile(htmlPath, $.html());
 		});
@@ -107,4 +111,4 @@ const makeAssetsDir = (htmlData, url, outputDir) => {
 };
 
 export default (url, outputDir) => getHTMLByUrl(url)
-	.then((data) => makeAssetsDir(data, url, outputDir));
+	.then((data) => makeAssetsDir(data, new URL(url), outputDir));
