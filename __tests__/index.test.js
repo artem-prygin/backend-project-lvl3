@@ -100,7 +100,7 @@ describe('successful cases', () => {
 		const fileWasCreated = await fileExists(path.join(tmpDirPath, fixturedHTMLFilename));
 		expect(fileWasCreated).toBe(true);
 		const actualContent = await fsPromises.readFile(path.join(tmpDirPath, fixturedHTMLFilename), 'utf-8');
-		expect(actualContent).toBe(expectedContent.trim());
+		expect(actualContent).toBe(expectedContent);
 	});
 
 	test.each(formats)('save %s resource', async (format) => {
