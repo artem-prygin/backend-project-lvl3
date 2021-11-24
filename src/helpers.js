@@ -1,11 +1,9 @@
 import path from 'path';
 
-export const formatName = (str) => {
-	return str
-		.match(/\w*/gi)
-		.filter((x) => x)
-		.join('-');
-};
+export const formatName = (str) => str
+	.match(/\w*/gi)
+	.filter((x) => x)
+	.join('-');
 
 export const generateAssetsBasename = (url) => formatName(url.hostname);
 
