@@ -3,18 +3,25 @@ import fsPromises from 'fs/promises';
 import fs from 'fs';
 import axios from 'axios';
 import cheerio from 'cheerio';
-import { formatName, generateBasename, generateAssetsDirName, generateAssetsDirPath } from './helpers.js';
+import prettier from 'prettier';
+import {
+	formatName,
+	generateHTMLBasename,
+	generateAssetsBasename,
+	generateAssetsDirName,
+	generateAssetsDirPath,
+} from './helpers.js';
 
 const assetsMapping = [
 	{
 		tagName: 'img',
 		attribute: 'src',
-		extensions: ['.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp'],
+		extensions: ['.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp', '.ico'],
 	},
 	{
 		tagName: 'link',
 		attribute: 'href',
-		extensions: ['.css'],
+		extensions: ['.ico', '.png', '.css'],
 	},
 	{
 		tagName: 'script',
@@ -30,41 +37,53 @@ const writeFile = (filepath, data) => fsPromises.writeFile(filepath, data)
 	.then(() => filepath);
 
 const saveAssets = (htmlData, url, outputDir) => {
-	console.log(url);
 	const $ = cheerio.load(htmlData);
-	const basename = generateBasename(url);
+	const htmlBasename = generateHTMLBasename(url);
+	const assetsBasename = generateAssetsBasename(url);
 	const assetsDirName = generateAssetsDirName(url);
 
-	const assets = $('img[src], link[href], script[src]').toArray();
-	const assetsPromises = assets.map((asset) => {
-		const assetInfo = assetsMapping.find((el) => el.tagName === $(asset)[0].name);
-		const assetLink = $(asset).attr(assetInfo.attribute);
-		const { pathname: assetPathname, href: assetHref } = new URL(assetLink, url.origin);
-		console.log(assetLink);
+	const nodes = $('img[src], link[href], script[src]').toArray();
+	const assetsPromises = nodes.map((node) => {
+		const assetInfo = assetsMapping.find((el) => el.tagName === $(node)[0].name);
+		const nodeLink = $(node).attr(assetInfo.attribute);
+		const newUrl = new URL(nodeLink, url.origin);
 
-		if (assetLink !== url.href && assetLink === assetHref) {
+		/* if link is external continue */
+		if (newUrl.origin !== url.origin) {
 			return Promise.resolve();
 		}
 
-		const assetExtension = path.parse(assetPathname).ext;
-		const assetFilenameRaw = path.parse(assetPathname).name;
-		const assetFilename = `${basename}-${formatName(assetFilenameRaw)}${assetExtension}`;
+		/* if link is same as url convert it to link to new html file */
+		if (newUrl.pathname === url.pathname) {
+			$(node).attr(assetInfo.attribute, `${htmlBasename}.html`);
+			return Promise.resolve();
+		}
+
+		const assetExtension = path.parse(newUrl.pathname).ext;
+
+		/* if extension is not from the list continue */
+		if (!assetInfo.extensions.includes(assetExtension)) {
+			return Promise.resolve();
+		}
+
+		const assetFilenameRaw = path.join(
+			path.parse(newUrl.pathname).dir,
+			path.parse(newUrl.pathname).name,
+		);
+		const assetFilename = `${assetsBasename}-${formatName(assetFilenameRaw)}${assetExtension}`;
 		const newAssetPath = path.join(assetsDirName, assetFilename);
+		$(node).attr(assetInfo.attribute, newAssetPath);
 
-		if (assetLink === url.href || !assetInfo.extensions.includes(assetExtension)) {
-			$(asset).attr(assetInfo.attribute, `${newAssetPath}.html`);
-			return Promise.resolve();
-		}
-
-		$(asset).attr(assetInfo.attribute, newAssetPath);
-
-		return axios.get(assetHref, { responseType: 'arraybuffer' })
-			.then((res) => writeFile(newAssetPath, res.data));
+		return axios.get(newUrl.href, { responseType: 'arraybuffer' })
+			.then((res) => writeFile(path.join(outputDir, newAssetPath), res.data));
 	});
 
-	const htmlPath = path.join(outputDir, `${basename}.html`);
+	const htmlPath = path.join(outputDir, `${htmlBasename}.html`);
+	const prettifiedHTML = prettier
+		.format($.html(), { semi: false, parser: 'html', bracketSameLine: true })
+		.trim();
 	return Promise.all(assetsPromises)
-		.then(() => writeFile(htmlPath, $.html()));
+		.then(() => writeFile(htmlPath, prettifiedHTML));
 };
 
 const makeAssetsDir = (htmlData, url, outputDir) => {
