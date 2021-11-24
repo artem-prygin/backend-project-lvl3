@@ -1,11 +1,10 @@
 import path from 'path';
 
 export const formatName = (str) => {
-	console.log(str);
 	return str
-		.replace(/www./g, '')
-		.replaceAll(/[./_]/g, '-')
-		.replaceAll(/^-|-$/g, '');
+		.match(/\w*/gi)
+		.filter((x) => x)
+		.join('-');
 };
 
 export const generateAssetsBasename = (url) => formatName(url.hostname);
