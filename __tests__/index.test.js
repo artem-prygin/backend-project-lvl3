@@ -65,6 +65,35 @@ beforeAll(async () => {
 		.reply(200, data));
 });
 
+describe('negative cases', () => {
+	test('load page: no response', async () => {
+		const invalidBaseUrl = urlOrigin.replace('x', '');
+		const expectedError = `getaddrinfo ENOTFOUND ${invalidBaseUrl}`;
+		nock(invalidBaseUrl).get('/').replyWithError(expectedError);
+		await expect(pageLoader(new URL(invalidBaseUrl), tmpDirPath))
+			.rejects.toThrow(expectedError);
+	});
+
+	test.each([404, 500])('status code %s', async (code) => {
+		scope.get(`/${code}`).reply(code, '');
+		await expect(pageLoader(new URL(`/${code}`, urlOrigin), tmpDirPath))
+			.rejects.toThrow(`Request failed with status code ${code}`);
+	});
+
+	test('file system errors', async () => {
+		const rootDirPath = '/sys';
+		await expect(pageLoader(url, rootDirPath))
+			.rejects.toThrow(`EACCES: permission denied, mkdir '${rootDirPath}/${expectedAssetsPathName}'`);
+
+		await expect(pageLoader(url, fixturedHTMLPath))
+			.rejects.toThrow(`ENOTDIR: not a directory, mkdir '${fixturedHTMLPath}`);
+
+		const notExistsPath = path.join(fixturesPath, 'notExistDir');
+		await expect(pageLoader(url, notExistsPath))
+			.rejects.toThrow(`ENOENT: no such file or directory, mkdir '${notExistsPath}/${expectedAssetsPathName}'`);
+	});
+});
+
 describe('successful cases', () => {
 	test('save html file', async () => {
 		await pageLoader(url, tmpDirPath);

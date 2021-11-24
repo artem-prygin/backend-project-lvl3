@@ -3,7 +3,8 @@ import fsPromises from 'fs/promises';
 import fs from 'fs';
 import axios from 'axios';
 import cheerio from 'cheerio';
-import prettier from 'prettier';
+import debug from 'debug';
+import Listr from 'listr';
 import {
 	formatName,
 	generateHTMLBasename,
@@ -12,6 +13,7 @@ import {
 	generateAssetsDirPath,
 } from './helpers.js';
 
+const log = debug('page-loader');
 const assetsMapping = [
 	{
 		tagName: 'img',
@@ -34,7 +36,7 @@ const getHTMLByUrl = (url) => axios.get(url.href)
 	.then((res) => res.data);
 
 const writeFile = (filepath, data) => fsPromises.writeFile(filepath, data)
-	.then(() => filepath);
+	.then(() => `Page was successfully downloaded into ${filepath}`);
 
 const saveAssets = (htmlData, url, outputDir) => {
 	const $ = cheerio.load(htmlData);
@@ -43,27 +45,28 @@ const saveAssets = (htmlData, url, outputDir) => {
 	const assetsDirName = generateAssetsDirName(url);
 
 	const nodes = $('img[src], link[href], script[src]').toArray();
-	const assetsPromises = nodes.map((node) => {
+	const assetsPromises = [];
+	nodes.forEach((node) => {
 		const assetInfo = assetsMapping.find((el) => el.tagName === $(node)[0].name);
 		const nodeLink = $(node).attr(assetInfo.attribute);
 		const newUrl = new URL(nodeLink, url.origin);
 
 		/* if link is external continue */
 		if (newUrl.origin !== url.origin) {
-			return Promise.resolve();
+			return null;
 		}
 
 		/* if link is same as url convert it to link to new html file */
 		if (newUrl.pathname === url.pathname) {
 			$(node).attr(assetInfo.attribute, `${htmlBasename}.html`);
-			return Promise.resolve();
+			return null;
 		}
 
 		const assetExtension = path.parse(newUrl.pathname).ext;
 
 		/* if extension is not from the list continue */
 		if (!assetInfo.extensions.includes(assetExtension)) {
-			return Promise.resolve();
+			return null;
 		}
 
 		const assetFilenameRaw = path.join(
@@ -74,16 +77,22 @@ const saveAssets = (htmlData, url, outputDir) => {
 		const newAssetPath = path.join(assetsDirName, assetFilename);
 		$(node).attr(assetInfo.attribute, newAssetPath);
 
-		return axios.get(newUrl.href, { responseType: 'arraybuffer' })
-			.then((res) => writeFile(path.join(outputDir, newAssetPath), res.data));
+		log('Download asset');
+		assetsPromises.push({
+			title: assetFilename,
+			task: (_ctx, task) => axios.get(newUrl.href, { responseType: 'arraybuffer' })
+				.then((res) => fsPromises.writeFile(path.join(outputDir, newAssetPath), res.data))
+				.catch(() => task.skip('Sorry, this asset is not available for downloading')),
+		});
+		return null;
 	});
 
-	const htmlPath = path.join(outputDir, `${htmlBasename}.html`);
-	const prettifiedHTML = prettier
-		.format($.html(), { semi: false, parser: 'html', bracketSameLine: true })
-		.trim();
-	return Promise.all(assetsPromises)
-		.then(() => writeFile(htmlPath, prettifiedHTML));
+	const listr = new Listr(assetsPromises);
+	return listr.run()
+		.then(() => {
+			const htmlPath = path.join(outputDir, `${htmlBasename}.html`);
+			return writeFile(htmlPath, $.html());
+		});
 };
 
 const makeAssetsDir = (htmlData, url, outputDir) => {
