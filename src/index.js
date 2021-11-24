@@ -58,7 +58,7 @@ const saveAssets = (htmlData, url, outputDir) => {
 
 		/* if link is same as url convert it to link to new html file */
 		if (newUrl.pathname === url.pathname) {
-			$(node).attr(assetInfo.attribute, `${htmlBasename}.html`);
+			$(node).attr(assetInfo.attribute, `${path.join(assetsDirName, htmlBasename)}.html`);
 			return null;
 		}
 
