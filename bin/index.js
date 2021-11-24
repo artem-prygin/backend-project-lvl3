@@ -2,12 +2,9 @@
 import program from 'commander';
 import pageLoader from '../index.js';
 
-program.arguments('<link>')
-	.description('Bla bla bla')
-	.version('1.0.0')
-	.option('-o, --output [type]', 'output dir', process.cwd())
-	.action((link) => {
-		pageLoader(link, program.opts().output)
-			.then(console.log);
-	})
+program.version('1.0.0')
+	.arguments('<link>')
+	.option('-o, --output [dir]', 'output dir', process.cwd())
+	.action((link) => pageLoader(link, program.output)
+		.then((data) => console.log(data)))
 	.parse(process.argv);

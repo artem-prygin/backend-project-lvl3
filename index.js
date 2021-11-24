@@ -1,3 +1,3 @@
 import pageLoader from './src/index.js';
 
-export default pageLoader;
+export default (url, outputDirPath = process.cwd()) => pageLoader(new URL(url), outputDirPath);
