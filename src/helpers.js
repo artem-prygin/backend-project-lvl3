@@ -1,9 +1,12 @@
 import path from 'path';
 
-export const formatName = (str) => str
-	.replace(/www./g, '')
-	.replaceAll(/[./_]/g, '-')
-	.replaceAll(/^-|-$/g, '');
+export const formatName = (str) => {
+	console.log(str);
+	return str
+		.replace(/www./g, '')
+		.replaceAll(/[./_]/g, '-')
+		.replaceAll(/^-|-$/g, '');
+}
 
 export const generateAssetsBasename = (url) => formatName(url.hostname);
 
