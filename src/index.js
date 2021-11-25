@@ -33,10 +33,16 @@ const assetsMapping = [
 ];
 
 const getHTMLByUrl = (url) => axios.get(url)
-	.then((res) => res.data);
+	.then((res) => res.data)
+	.catch((e) => {
+		throw new Error(e.message);
+	});
 
 const writeFile = (filepath, data) => fsPromises.writeFile(filepath, data)
-	.then(() => `Page was successfully downloaded into ${filepath}`);
+	.then(() => `Page was successfully downloaded into ${filepath}`)
+	.catch((e) => {
+		throw new Error(e.message);
+	});
 
 const saveAssets = (htmlData, url, outputDir) => {
 	const $ = cheerio.load(htmlData);
@@ -96,6 +102,9 @@ const saveAssets = (htmlData, url, outputDir) => {
 		.then(() => {
 			const htmlPath = path.join(outputDir, `${htmlBasename}.html`);
 			return writeFile(htmlPath, $.html());
+		})
+		.catch((e) => {
+			throw new Error(e.message);
 		});
 };
 
@@ -107,8 +116,14 @@ const makeAssetsDir = (htmlData, url, outputDir) => {
 	}
 
 	return fsPromises.mkdir(assetsDirPath)
-		.then(() => saveAssets(htmlData, url, outputDir));
+		.then(() => saveAssets(htmlData, url, outputDir))
+		.catch((e) => {
+			throw new Error(e.message);
+		});
 };
 
 export default (url, outputDir) => getHTMLByUrl(url)
-	.then((data) => makeAssetsDir(data, new URL(url), outputDir));
+	.then((data) => makeAssetsDir(data, new URL(url), outputDir))
+	.catch((e) => {
+		throw new Error(e.message);
+	});
