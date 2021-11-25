@@ -8,5 +8,9 @@ program.version('1.0.0')
 	.action((link) => pageLoader(link, program.output)
 		.then((data) => {
 			console.log(data);
+		})
+		.catch((err) => {
+			console.error(err.toString());
+			process.exit(1);
 		}))
 	.parse(process.argv);
