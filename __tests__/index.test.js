@@ -91,7 +91,7 @@ describe('negative cases', () => {
 	test('localhost', async () => {
 		const invalidBaseUrl = 'http://localhost/blog/about';
 		const expectedError = 'connect ECONNREFUSED 127.0.0.1:80';
-		nock(invalidBaseUrl).persist().get('/').replyWithError(expectedError);
+		nock(invalidBaseUrl).persist().get('').replyWithError(expectedError);
 		await expect(pageLoader(invalidBaseUrl, tmpDirPath))
 			.rejects.toThrow(expectedError);
 	});
