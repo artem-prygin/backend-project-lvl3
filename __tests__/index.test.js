@@ -75,15 +75,23 @@ describe('negative cases', () => {
 	test('no response', async () => {
 		const invalidBaseUrl = urlOrigin.replace('x', '');
 		const expectedError = `getaddrinfo ENOTFOUND ${invalidBaseUrl}`;
-		nock(invalidBaseUrl).get('/').replyWithError(expectedError);
+		nock(invalidBaseUrl).persist().get('/').replyWithError(expectedError);
 		await expect(pageLoader(invalidBaseUrl, tmpDirPath))
 			.rejects.toThrow(expectedError);
 	});
 
-	test('wrong url format', async () => {
-		const invalidBaseUrl = 'invalid_url';
+	test('wrong url', async () => {
+		const invalidBaseUrl = 'http://badsite';
+		const expectedError = `getaddrinfo EAI_AGAIN ${invalidBaseUrl}`;
+		nock(invalidBaseUrl).persist().get('/').replyWithError(expectedError);
+		await expect(pageLoader(invalidBaseUrl, tmpDirPath))
+			.rejects.toThrow(expectedError);
+	});
+
+	test('localhost', async () => {
+		const invalidBaseUrl = 'http://localhost/blog/about';
 		const expectedError = 'connect ECONNREFUSED 127.0.0.1:80';
-		nock(invalidBaseUrl).get('/').replyWithError(expectedError);
+		nock(invalidBaseUrl).persist().get('/').replyWithError(expectedError);
 		await expect(pageLoader(invalidBaseUrl, tmpDirPath))
 			.rejects.toThrow(expectedError);
 	});

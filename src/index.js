@@ -113,5 +113,6 @@ const makeAssetsDir = (htmlData, url, outputDir) => {
 export default (url, outputDir) => getHTMLByUrl(url)
 	.then((data) => makeAssetsDir(data, new URL(url), outputDir))
 	.catch((e) => {
+		console.log(e.message);
 		throw new Error(e.message);
 	});
