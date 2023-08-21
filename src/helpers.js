@@ -12,7 +12,7 @@ export const generateHTMLBasename = (url) => {
   return formatName(nameRaw);
 };
 
-export const generateAssetsDirName = (url) => `${generateHTMLBasename(url)}_files`;
+export const generateAssetsDirName = (url) => `${generateHTMLBasename(url)}`;
 
 export const generateAssetsDirPath = (url, outputDir) => path
   .join(outputDir, generateAssetsDirName(url));

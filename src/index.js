@@ -6,15 +6,13 @@ import cheerio from 'cheerio';
 import debug from 'debug';
 import Listr from 'listr';
 import {
-  formatName,
-  generateHTMLBasename,
-  generateAssetsBasename,
-  generateAssetsDirName,
-  generateAssetsDirPath,
+  formatName, generateAssetsBasename, generateAssetsDirName,
+  generateAssetsDirPath, generateHTMLBasename,
 } from './helpers.js';
+import { getInfoViaXml } from './xml.js';
 
 const log = debug('page-loader');
-const assetsMapping = [
+export const assetsMapping = [
   {
     tagName: 'img',
     attribute: 'src',
@@ -32,23 +30,28 @@ const assetsMapping = [
   },
 ];
 
-const getHTMLByUrl = (url) => axios.get(url)
-  .then((res) => res.data);
+export const getHTMLByUrl = (url) => axios.get(url)
+  .then((res) => res.data)
+  .catch((e) => console.log(
+    `Reading ${url} failed. Something went wrong :(. Error: ${e.response?.status} ${e.response?.statusText}`));
 
 const writeFile = (filepath, data) => fsPromises.writeFile(filepath, data)
   .then(() => `Page was successfully downloaded into ${filepath}`);
 
-const saveAssets = (htmlData, url, outputDir) => {
+export const saveAssets = (htmlData, url, outputDir, isXML = false) => {
   const $ = cheerio.load(htmlData);
   const htmlBasename = generateHTMLBasename(url);
   const assetsBasename = generateAssetsBasename(url);
   const assetsDirName = generateAssetsDirName(url);
 
-  const nodes = $('img[src], link[href], script[src]').toArray();
+  const nodes = $('img[src], link[href], script[src]')
+    .toArray();
   const assetsPromises = [];
   nodes.forEach((node) => {
-    const assetInfo = assetsMapping.find((el) => el.tagName === $(node)[0].name);
-    const nodeLink = $(node).attr(assetInfo.attribute);
+    const assetInfo = assetsMapping
+      .find((el) => el.tagName === $(node)[0].name);
+    const nodeLink = $(node)
+      .attr(assetInfo.attribute);
     const newUrl = new URL(nodeLink, url.origin);
 
     /* if link is external continue */
@@ -58,7 +61,8 @@ const saveAssets = (htmlData, url, outputDir) => {
 
     /* if link is same as url convert it to link to new html file */
     if (newUrl.pathname === url.pathname) {
-      $(node).attr(assetInfo.attribute, `${path.join(assetsDirName, htmlBasename)}.html`);
+      $(node)
+        .attr(assetInfo.attribute, `${path.join(assetsDirName, htmlBasename)}.html`);
       return null;
     }
 
@@ -75,7 +79,9 @@ const saveAssets = (htmlData, url, outputDir) => {
     );
     const assetFilename = `${assetsBasename}-${formatName(assetFilenameRaw)}${assetExtension}`;
     const newAssetPath = path.join(assetsDirName, assetFilename);
-    $(node).attr(assetInfo.attribute, newAssetPath);
+
+    $(node)
+      .attr(assetInfo.attribute, newAssetPath);
 
     log('Download asset');
     assetsPromises.push({
@@ -86,6 +92,11 @@ const saveAssets = (htmlData, url, outputDir) => {
     });
     return null;
   });
+
+  if (isXML) {
+    const htmlPath = path.join(outputDir, `${htmlBasename}.html`);
+    return writeFile(htmlPath, $.html());
+  }
 
   const listr = new Listr(assetsPromises);
   return listr.run()
@@ -110,5 +121,13 @@ const makeAssetsDir = (htmlData, url, outputDir) => {
     .then(() => saveAssets(htmlData, url, outputDir));
 };
 
-export default (url, outputDir) => getHTMLByUrl(url)
-  .then((data) => makeAssetsDir(data, new URL(url), outputDir));
+export default (url, outputDir) => {
+  return getHTMLByUrl(url)
+    .then((data) => {
+      if (url.endsWith('xml')) {
+        return getInfoViaXml(url, outputDir);
+      }
+
+      return makeAssetsDir(data, new URL(url), outputDir);
+    });
+};
